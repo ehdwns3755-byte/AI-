@@ -260,15 +260,15 @@ Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
 
 | Issue | Type | Priority | 상태 |
 |-------|------|----------|------|
-| XSS 취약점 | Bug | 🔴 High | TODO |
-| 에러 처리 | Improvement | 🟡 Medium | TODO |
-| 로깅 부재 | Improvement | 🟡 Medium | TODO |
-| Hacker News 날짜 | Bug | 🟡 Medium | TODO |
-| 타임아웃 설정 | Bug | 🟡 Medium | TODO |
-| 중복 제거 | Improvement | 🟢 Low | TODO |
-| robots.txt | Improvement | 🟡 Medium | TODO |
-| 빈 결과 처리 | Improvement | 🟡 Medium | TODO |
-| README 가이드 | Documentation | 🟡 Medium | TODO |
+| XSS 취약점 | Bug | 🔴 High | ✅ DONE |
+| 에러 처리 | Improvement | 🟡 Medium | ✅ DONE |
+| 로깅 부재 | Improvement | 🟡 Medium | ✅ DONE |
+| Hacker News 날짜 | Bug | 🟡 Medium | ✅ DONE |
+| 타임아웃 설정 | Bug | 🟡 Medium | ✅ DONE |
+| 중복 제거 | Improvement | 🟢 Low | ✅ DONE |
+| robots.txt | Improvement | 🟡 Medium | ✅ DONE |
+| 빈 결과 처리 | Improvement | 🟡 Medium | ✅ DONE |
+| README 가이드 | Documentation | 🟡 Medium | ✅ DONE |
 
 ---
 
