@@ -31,7 +31,10 @@
       "Bash(git reset *)",
       "Bash(rm -f \"주식초보_학습계획.html\")",
       "Bash(git filter-branch *)",
-      "Bash(git commit *)"
+      "Bash(git commit *)",
+      "Bash(git ls-tree *)",
+      "Bash(awk '{print $NF}')",
+      "Bash(echo \"✅ Remote: $\\(git remote get-url origin\\)\")"
     ]
   }
 }
