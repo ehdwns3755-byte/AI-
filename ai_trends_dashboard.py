@@ -5,7 +5,9 @@ import requests
 import feedparser
 import json
 import os
-from datetime import datetime
+import logging
+from datetime import datetime, timedelta
+from html import escape
 from bs4 import BeautifulSoup
 from urllib.parse import urljoin
 
@@ -14,13 +16,32 @@ class AITrendsDashboard:
         self.script_dir = os.path.dirname(os.path.abspath(__file__))
         self.data_file = os.path.join(self.script_dir, 'ai_trends_data.json')
         self.html_file = os.path.join(self.script_dir, 'ai_dashboard.html')
+        self.log_file = os.path.join(self.script_dir, 'ai_trends.log')
         self.news_items = []
+        self._setup_logging()
+
+    def _setup_logging(self):
+        """Configure logging to both file and console"""
+        logging.basicConfig(
+            level=logging.INFO,
+            format='%(asctime)s - %(levelname)s - %(message)s',
+            handlers=[
+                logging.FileHandler(self.log_file, encoding='utf-8'),
+                logging.StreamHandler()
+            ]
+        )
 
     def fetch_google_news(self):
         """Fetch AI news from Google News"""
         try:
             url = 'https://news.google.com/rss/search?q=artificial+intelligence+OR+machine+learning+OR+AI&hl=en-US&gl=US&ceid=US:en'
-            feed = feedparser.parse(url)
+            response = requests.get(url, timeout=10)
+            response.raise_for_status()
+            feed = feedparser.parse(response.content)
+
+            if not feed.entries:
+                logging.warning("No entries found in Google News feed")
+                return
 
             for entry in feed.entries[:15]:
                 self.news_items.append({
@@ -31,15 +52,20 @@ class AITrendsDashboard:
                     'date': entry.get('published', ''),
                     'summary': entry.get('summary', '')[:200]
                 })
+        except requests.Timeout:
+            logging.error("Timeout while fetching Google News")
+        except requests.RequestException as e:
+            logging.error(f"Network error fetching Google News: {e}")
         except Exception as e:
-            print(f"Error fetching Google News: {e}")
+            logging.error(f"Unexpected error fetching Google News: {e}")
 
     def fetch_hacker_news(self):
         """Fetch AI-related stories from Hacker News"""
         try:
             url = 'https://news.ycombinator.com/newest'
-            headers = {'User-Agent': 'Mozilla/5.0'}
+            headers = {'User-Agent': 'Mozilla/5.0 (compatible; AITrendsDashboard/1.0)'}
             response = requests.get(url, headers=headers, timeout=10)
+            response.raise_for_status()
             soup = BeautifulSoup(response.content, 'html.parser')
 
             stories = soup.find_all('span', class_='titleline')[:10]
@@ -48,22 +74,33 @@ class AITrendsDashboard:
                 if link_elem:
                     title = link_elem.get_text()
                     if any(keyword in title.lower() for keyword in ['ai', 'ml', 'llm', 'neural', 'gpt', 'claude']):
+                        date_str = self._extract_hacker_news_date(story)
                         self.news_items.append({
                             'title': title,
                             'link': link_elem.get('href', ''),
                             'source': 'Hacker News',
                             'category': self._categorize(title),
-                            'date': datetime.now().strftime('%Y-%m-%d'),
+                            'date': date_str,
                             'summary': ''
                         })
+        except requests.Timeout:
+            logging.error("Timeout while fetching Hacker News")
+        except requests.RequestException as e:
+            logging.error(f"Network error fetching Hacker News: {e}")
         except Exception as e:
-            print(f"Error fetching Hacker News: {e}")
+            logging.error(f"Unexpected error fetching Hacker News: {e}")
 
     def fetch_product_hunt(self):
         """Fetch AI products from Product Hunt"""
         try:
             url = 'https://www.producthunt.com/feed'
-            feed = feedparser.parse(url)
+            response = requests.get(url, timeout=10)
+            response.raise_for_status()
+            feed = feedparser.parse(response.content)
+
+            if not feed.entries:
+                logging.warning("No entries found in Product Hunt feed")
+                return
 
             for entry in feed.entries[:10]:
                 title = entry.get('title', '')
@@ -76,18 +113,28 @@ class AITrendsDashboard:
                         'date': entry.get('published', ''),
                         'summary': entry.get('summary', '')[:200]
                     })
+        except requests.Timeout:
+            logging.error("Timeout while fetching Product Hunt")
+        except requests.RequestException as e:
+            logging.error(f"Network error fetching Product Hunt: {e}")
         except Exception as e:
-            print(f"Error fetching Product Hunt: {e}")
+            logging.error(f"Unexpected error fetching Product Hunt: {e}")
 
     def fetch_reddit(self):
         """Fetch AI discussions from Reddit"""
         try:
             url = 'https://www.reddit.com/r/MachineLearning/new.json'
-            headers = {'User-Agent': 'Mozilla/5.0'}
+            headers = {'User-Agent': 'Mozilla/5.0 (compatible; AITrendsDashboard/1.0)'}
             response = requests.get(url, headers=headers, timeout=10)
+            response.raise_for_status()
             data = response.json()
 
-            for post in data.get('data', {}).get('children', [])[:10]:
+            children = data.get('data', {}).get('children', [])
+            if not children:
+                logging.warning("No posts found in Reddit feed")
+                return
+
+            for post in children[:10]:
                 post_data = post.get('data', {})
                 self.news_items.append({
                     'title': post_data.get('title', ''),
@@ -97,8 +144,12 @@ class AITrendsDashboard:
                     'date': datetime.fromtimestamp(post_data.get('created_utc', 0)).strftime('%Y-%m-%d'),
                     'summary': post_data.get('selftext', '')[:200]
                 })
+        except requests.Timeout:
+            logging.error("Timeout while fetching Reddit")
+        except requests.RequestException as e:
+            logging.error(f"Network error fetching Reddit: {e}")
         except Exception as e:
-            print(f"Error fetching Reddit: {e}")
+            logging.error(f"Unexpected error fetching Reddit: {e}")
 
     def _categorize(self, text):
         """Categorize news based on keywords"""
@@ -116,14 +167,45 @@ class AITrendsDashboard:
         else:
             return 'General AI'
 
+    def _extract_hacker_news_date(self, story_elem):
+        """Extract actual publication date from Hacker News story element"""
+        try:
+            parent = story_elem.find_parent('tr')
+            if not parent:
+                return datetime.now().strftime('%Y-%m-%d')
+
+            subtext = parent.find_next('tr')
+            if not subtext:
+                return datetime.now().strftime('%Y-%m-%d')
+
+            age_elem = subtext.find('span', class_='age')
+            if age_elem:
+                title_text = age_elem.get_text()
+                if 'hour' in title_text or 'minute' in title_text or 'second' in title_text:
+                    return datetime.now().strftime('%Y-%m-%d')
+                elif 'day' in title_text:
+                    try:
+                        days_ago = int(title_text.split()[0])
+                        return (datetime.now() - timedelta(days=days_ago)).strftime('%Y-%m-%d')
+                    except (ValueError, IndexError):
+                        return datetime.now().strftime('%Y-%m-%d')
+            return datetime.now().strftime('%Y-%m-%d')
+        except Exception as e:
+            logging.debug(f"Error extracting Hacker News date: {e}")
+            return datetime.now().strftime('%Y-%m-%d')
+
     def save_data(self):
         """Save collected data to JSON"""
-        data = {
-            'timestamp': datetime.now().isoformat(),
-            'items': self.news_items
-        }
-        with open(self.data_file, 'w', encoding='utf-8') as f:
-            json.dump(data, f, ensure_ascii=False, indent=2)
+        try:
+            data = {
+                'timestamp': datetime.now().isoformat(),
+                'items': self.news_items
+            }
+            with open(self.data_file, 'w', encoding='utf-8') as f:
+                json.dump(data, f, ensure_ascii=False, indent=2)
+            logging.info(f"Data saved: {len(self.news_items)} items")
+        except Exception as e:
+            logging.error(f"Error saving data: {e}")
 
     def generate_html(self):
         """Generate HTML dashboard"""
@@ -336,19 +418,24 @@ class AITrendsDashboard:
             <div class="news-grid">
 """
                 for item in items[:6]:
+                    escaped_title = escape(item['title'])
+                    escaped_summary = escape(item['summary']) if item['summary'] else ''
+                    escaped_link = escape(item['link'])
+                    escaped_source = escape(item['source'])
+                    escaped_date = escape(item['date'])
                     html_content += f"""
                 <div class="news-card">
                     <div class="news-card-header">
-                        <span class="news-source">{item['source']}</span>
-                        <span class="news-date">{item['date']}</span>
+                        <span class="news-source">{escaped_source}</span>
+                        <span class="news-date">{escaped_date}</span>
                     </div>
                     <h3 class="news-title">
-                        <a href="{item['link']}" target="_blank" rel="noopener noreferrer">
-                            {item['title']}
+                        <a href="{escaped_link}" target="_blank" rel="noopener noreferrer">
+                            {escaped_title}
                         </a>
                     </h3>
-                    {f'<p class="news-summary">{item["summary"]}</p>' if item['summary'] else ''}
-                    <a href="{item['link']}" class="news-link" target="_blank" rel="noopener noreferrer">
+                    {f'<p class="news-summary">{escaped_summary}</p>' if escaped_summary else ''}
+                    <a href="{escaped_link}" class="news-link" target="_blank" rel="noopener noreferrer">
                         전체 보기 →
                     </a>
                 </div>
@@ -372,50 +459,65 @@ class AITrendsDashboard:
 </html>
 """
 
-        with open(self.html_file, 'w', encoding='utf-8') as f:
-            f.write(html_content)
+        try:
+            with open(self.html_file, 'w', encoding='utf-8') as f:
+                f.write(html_content)
+            logging.info(f"HTML dashboard generated: {self.html_file}")
+        except Exception as e:
+            logging.error(f"Error generating HTML: {e}")
 
     def run(self):
         """Main execution"""
-        print("🔍 AI 뉴스 수집 중...")
+        logging.info("=" * 50)
+        logging.info("Starting AI news collection")
+        logging.info("=" * 50)
+
         self.fetch_google_news()
-        print(f"  ✓ Google News: {len([x for x in self.news_items if x['source'] == 'Google News'])} items")
+        google_count = len([x for x in self.news_items if x['source'] == 'Google News'])
+        logging.info(f"Google News: {google_count} items")
 
         self.fetch_hacker_news()
-        print(f"  ✓ Hacker News: {len([x for x in self.news_items if x['source'] == 'Hacker News'])} items")
+        hn_count = len([x for x in self.news_items if x['source'] == 'Hacker News'])
+        logging.info(f"Hacker News: {hn_count} items")
 
         self.fetch_product_hunt()
-        print(f"  ✓ Product Hunt: {len([x for x in self.news_items if x['source'] == 'Product Hunt'])} items")
+        ph_count = len([x for x in self.news_items if x['source'] == 'Product Hunt'])
+        logging.info(f"Product Hunt: {ph_count} items")
 
         self.fetch_reddit()
-        print(f"  ✓ Reddit: {len([x for x in self.news_items if x['source'] == 'Reddit'])} items")
+        reddit_count = len([x for x in self.news_items if x['source'] == 'Reddit'])
+        logging.info(f"Reddit: {reddit_count} items")
 
-        # Remove duplicates by title
+        if not self.news_items:
+            logging.warning("No news items collected. Checking network connection and API status.")
+            return
+
+        # Remove duplicates by normalized title
         seen = set()
         unique_items = []
         for item in self.news_items:
-            if item['title'] not in seen:
-                seen.add(item['title'])
+            normalized_title = item['title'].lower().strip()
+            if normalized_title not in seen:
+                seen.add(normalized_title)
                 unique_items.append(item)
-        self.news_items = unique_items
 
-        print(f"\n📊 수집 완료: 총 {len(self.news_items)} 개 항목")
+        duplicates_removed = len(self.news_items) - len(unique_items)
+        self.news_items = unique_items
+        logging.info(f"Removed {duplicates_removed} duplicates. Total items: {len(self.news_items)}")
 
         self.save_data()
-        print(f"💾 데이터 저장: {self.data_file}")
-
         self.generate_html()
-        print(f"🎨 대시보드 생성: {self.html_file}")
 
         # Open in default browser (optional)
         try:
             import webbrowser
             webbrowser.open(f'file:///{self.html_file.replace(chr(92), "/")}')
-            print("🌐 브라우저에서 열었습니다.")
+            logging.info("Opened dashboard in default browser")
         except Exception as e:
-            print(f"  (브라우저 열기 실패: {e})")
+            logging.debug(f"Failed to open browser: {e}")
 
-        print("\n✅ 완료!")
+        logging.info("Collection and dashboard generation completed successfully")
+        logging.info("=" * 50)
 
 if __name__ == '__main__':
     dashboard = AITrendsDashboard()
