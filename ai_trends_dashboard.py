@@ -12,12 +12,28 @@ from bs4 import BeautifulSoup
 from urllib.parse import urljoin
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
+try:
+    from dotenv import load_dotenv
+except ImportError:
+    load_dotenv = None
+
 class AITrendsDashboard:
     def __init__(self):
         self.script_dir = os.path.dirname(os.path.abspath(__file__))
-        self.data_file = os.path.join(self.script_dir, 'ai_trends_data.json')
-        self.html_file = os.path.join(self.script_dir, 'ai_dashboard.html')
-        self.log_file = os.path.join(self.script_dir, 'ai_trends.log')
+
+        if load_dotenv:
+            env_file = os.path.join(self.script_dir, '.env')
+            load_dotenv(env_file)
+
+        self.data_dir = os.getenv('DATA_DIR', self.script_dir)
+        self.log_dir = os.getenv('LOG_DIR', self.script_dir)
+
+        os.makedirs(self.data_dir, exist_ok=True)
+        os.makedirs(self.log_dir, exist_ok=True)
+
+        self.data_file = os.path.join(self.data_dir, 'ai_trends_data.json')
+        self.html_file = os.path.join(self.data_dir, 'ai_dashboard.html')
+        self.log_file = os.path.join(self.log_dir, 'ai_trends.log')
         self.config_file = os.path.join(self.script_dir, 'config.json')
         self.news_items = []
         self.config = self._load_config()
@@ -43,8 +59,11 @@ class AITrendsDashboard:
 
     def _setup_logging(self):
         """Configure logging to both file and console"""
+        log_level_str = os.getenv('LOG_LEVEL', 'INFO').upper()
+        log_level = getattr(logging, log_level_str, logging.INFO)
+
         logging.basicConfig(
-            level=logging.INFO,
+            level=log_level,
             format='%(asctime)s - %(levelname)s - %(message)s',
             handlers=[
                 logging.FileHandler(self.log_file, encoding='utf-8'),
