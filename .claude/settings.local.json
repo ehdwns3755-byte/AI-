@@ -25,7 +25,13 @@
       "Bash(mkdir -p \".claude/skills/code-audit-and-github-issues\")",
       "Bash(git commit -m ' *)",
       "Bash(gh issue *)",
-      "Bash(mkdir -p \"C:\\\\Users\\\\Admin\\\\Desktop\\\\AI\\\\.claude\\\\skills\" && ls -la \"C:\\\\Users\\\\Admin\\\\Desktop\\\\AI\\\\.claude\\\\skills\\\\\")"
+      "Bash(mkdir -p \"C:\\\\Users\\\\Admin\\\\Desktop\\\\AI\\\\.claude\\\\skills\" && ls -la \"C:\\\\Users\\\\Admin\\\\Desktop\\\\AI\\\\.claude\\\\skills\\\\\")",
+      "Bash(git filter-repo *)",
+      "Bash(git stash *)",
+      "Bash(git reset *)",
+      "Bash(rm -f \"주식초보_학습계획.html\")",
+      "Bash(git filter-branch *)",
+      "Bash(git commit *)"
     ]
   }
 }
