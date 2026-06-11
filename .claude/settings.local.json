@@ -24,7 +24,8 @@
       "Skill(claude-api:*)",
       "Bash(mkdir -p \".claude/skills/code-audit-and-github-issues\")",
       "Bash(git commit -m ' *)",
-      "Bash(gh issue *)"
+      "Bash(gh issue *)",
+      "Bash(mkdir -p \"C:\\\\Users\\\\Admin\\\\Desktop\\\\AI\\\\.claude\\\\skills\" && ls -la \"C:\\\\Users\\\\Admin\\\\Desktop\\\\AI\\\\.claude\\\\skills\\\\\")"
     ]
   }
 }
