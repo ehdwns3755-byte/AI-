@@ -207,5 +207,151 @@ self._backup_data()
 
 ---
 
+## Issue 1️⃣6️⃣: 타입 힌팅 추가: Python 타입 어노테이션 부재
+
+**Type:** Improvement 📈
+**Priority:** 🟢 Low
+
+### 문제
+코드에 타입 힌팅이 전혀 없어서:
+- IDE의 자동완성 및 타입 체크 기능 사용 불가
+- 런타임 타입 에러를 조기에 발견 불가
+- 코드 가독성 및 유지보수성 저하
+
+### 위치
+- ai_trends_dashboard.py 전체
+
+### 해결책
+Python 3.7+ 타입 힌팅 추가:
+```python
+from typing import Dict, List, Optional, Any
+
+def fetch_google_news(self) -> None:
+    """Fetch AI news from Google News"""
+    config: Dict[str, Any] = self.config.get(...)
+    limit: int = config.get('limit', 15)
+    items: List[Dict[str, str]] = []
+```
+
+---
+
+## Issue 1️⃣7️⃣: DRY 위반: fetch_* 메서드의 중복 코드 제거
+
+**Type:** Improvement 📈
+**Priority:** 🟡 Medium
+
+### 문제
+fetch_google_news, fetch_hacker_news, fetch_product_hunt, fetch_reddit에서
+반복되는 패턴:
+```python
+config = self.config.get('sources', {}).get('source_name', {})
+limit = config.get('limit', 10)
+timeout = config.get('timeout', 10)
+```
+
+이 패턴이 4번 반복되고 있습니다.
+
+### 해결책
+헬퍼 메서드 생성:
+```python
+def _get_source_config(self, source_name: str) -> Dict[str, Any]:
+    """Get configuration for a news source"""
+    return self.config.get('sources', {}).get(source_name, {})
+
+# 사용
+config = self._get_source_config('google_news')
+```
+
+---
+
+## Issue 1️⃣8️⃣: 상수화: 하드코딩된 키워드를 상수로 정의
+
+**Type:** Improvement 📈
+**Priority:** 🟢 Low
+
+### 문제
+AI 관련 키워드들이 여러 곳에 하드코딩:
+- fetch_hacker_news: ['ai', 'ml', 'llm', ...]
+- _categorize 메서드에서도 마찬가지
+- 중복이 있고 일관성이 없음
+
+### 해결책
+상수 정의:
+```python
+AI_KEYWORDS = ['ai', 'ml', 'llm', 'neural', 'gpt', 'claude']
+CATEGORY_KEYWORDS = {
+    'Large Language Models': ['llm', 'gpt', 'transformer', ...],
+    'Computer Vision': ['computer vision', 'image', ...],
+}
+```
+
+---
+
+## Issue 1️⃣9️⃣: API 재시도 로직: exponential backoff 구현
+
+**Type:** Improvement 📈
+**Priority:** 🟡 Medium
+
+### 문제
+현재 코드는 API 호출 실패 시 재시도하지 않습니다.
+일시적 네트워크 문제로 전체 실행이 실패할 수 있습니다.
+
+### 해결책
+tenacity 또는 커스텀 재시도 로직:
+```python
+from tenacity import retry, stop_after_attempt, wait_exponential
+
+@retry(
+    stop=stop_after_attempt(3),
+    wait=wait_exponential(multiplier=1, min=2, max=10)
+)
+def _fetch_with_retry(self, url: str, timeout: int) -> requests.Response:
+    return requests.get(url, timeout=timeout)
+```
+
+---
+
+## Issue 2️⃣0️⃣: 입력 검증: LOG_LEVEL 및 환경 변수 검증
+
+**Type:** Improvement 📈
+**Priority:** 🟢 Low
+
+### 문제
+LOG_LEVEL에 잘못된 값이 올 경우:
+```python
+log_level_str = os.getenv('LOG_LEVEL', 'INFO').upper()
+log_level = getattr(logging, log_level_str, logging.INFO)
+```
+
+현재는 getattr의 기본값으로 INFO를 사용하지만,
+잘못된 값임을 알리지 않습니다.
+
+### 해결책
+검증 추가:
+```python
+VALID_LOG_LEVELS = ['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL']
+log_level_str = os.getenv('LOG_LEVEL', 'INFO').upper()
+
+if log_level_str not in VALID_LOG_LEVELS:
+    logging.warning(f"Invalid LOG_LEVEL: {log_level_str}, using INFO")
+    log_level_str = 'INFO'
+
+log_level = getattr(logging, log_level_str)
+```
+
+---
+
+## Summary
+
+| Issue | Type | Priority | 상태 |
+|-------|------|----------|------|
+| 타입 힌팅 | Improvement | 🟢 Low | TODO |
+| DRY 위반 | Improvement | 🟡 Medium | TODO |
+| 상수화 | Improvement | 🟢 Low | TODO |
+| API 재시도 | Improvement | 🟡 Medium | TODO |
+| 입력 검증 | Improvement | 🟢 Low | TODO |
+
+---
+
 **생성 일시**: 2026-06-11
-**분석 도구**: code-audit-and-github-issues skill
+**분석 도구**: code-audit-and-github-issues skill (ITERATION 3)
