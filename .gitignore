@@ -35,5 +35,20 @@ Thumbs.db
 
 # Project specific
 ai_trends_data.json
+ai_trends_data.json.backup
 ai_dashboard.html
 logs/
+data/
+.env
+.env.local
+
+# Temporary/Generated files
+*.log
+__pycache__/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Legacy files (moved to version control once)
+create_issues*.py
+auto_create_issues.py
