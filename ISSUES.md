@@ -198,12 +198,12 @@ self._backup_data()
 
 | Issue | Type | Priority | 상태 |
 |-------|------|----------|------|
-| 중복 파일 정리 | Chore | 🟢 Low | TODO |
-| Hacker News 성능 | Improvement | 🟡 Medium | TODO |
-| 설정 외부화 | Improvement | 🟡 Medium | TODO |
-| 테스트 추가 | Improvement | 🟡 Medium | TODO |
-| 환경 변수 | Improvement | 🟡 Medium | TODO |
-| 캐싱 메커니즘 | Improvement | 🟡 Medium | TODO |
+| 중복 파일 정리 | Chore | 🟢 Low | ✅ DONE |
+| Hacker News 성능 | Improvement | 🟡 Medium | ✅ DONE |
+| 설정 외부화 | Improvement | 🟡 Medium | ✅ DONE |
+| 테스트 추가 | Improvement | 🟡 Medium | ✅ DONE |
+| 환경 변수 | Improvement | 🟡 Medium | ✅ DONE |
+| 캐싱 메커니즘 | Improvement | 🟡 Medium | ✅ DONE |
 
 ---
 
