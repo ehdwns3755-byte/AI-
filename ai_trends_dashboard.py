@@ -244,6 +244,33 @@ class AITrendsDashboard:
 
         return 'General AI'
 
+    def _backup_data(self):
+        """Create backup of current data for fallback"""
+        try:
+            if os.path.exists(self.data_file):
+                backup_file = self.data_file + '.backup'
+                with open(self.data_file, 'r', encoding='utf-8') as src:
+                    backup_data = src.read()
+                with open(backup_file, 'w', encoding='utf-8') as dst:
+                    dst.write(backup_data)
+                logging.debug(f"Backup created: {backup_file}")
+        except Exception as e:
+            logging.warning(f"Failed to create backup: {e}")
+
+    def _load_cached_data(self):
+        """Load cached data when current fetch fails"""
+        try:
+            backup_file = self.data_file + '.backup'
+            if os.path.exists(backup_file):
+                with open(backup_file, 'r', encoding='utf-8') as f:
+                    cached_data = json.load(f)
+                    logging.warning(f"Loaded cached data with {len(cached_data.get('items', []))} items")
+                    return cached_data
+        except Exception as e:
+            logging.warning(f"Failed to load cached data: {e}")
+
+        return {'items': [], 'timestamp': datetime.now().isoformat()}
+
     def save_data(self):
         """Save collected data to JSON"""
         try:
@@ -254,6 +281,7 @@ class AITrendsDashboard:
             with open(self.data_file, 'w', encoding='utf-8') as f:
                 json.dump(data, f, ensure_ascii=False, indent=2)
             logging.info(f"Data saved: {len(self.news_items)} items")
+            self._backup_data()
         except Exception as e:
             logging.error(f"Error saving data: {e}")
 
@@ -539,8 +567,13 @@ class AITrendsDashboard:
         logging.info(f"Reddit: {reddit_count} items")
 
         if not self.news_items:
-            logging.warning("No news items collected. Checking network connection and API status.")
-            return
+            logging.warning("No news items collected. Trying to load cached data...")
+            cached_data = self._load_cached_data()
+            self.news_items = cached_data.get('items', [])
+
+            if not self.news_items:
+                logging.warning("No cached data available. Check network connection and API status.")
+                return
 
         # Remove duplicates by normalized title
         seen = set()
