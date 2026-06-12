@@ -1,0 +1,56 @@
+version: '3.8'
+
+services:
+  # AI Trends Dashboard 서비스
+  ai-trends-dashboard:
+    image: ai-trends-dashboard:latest
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"  # 웹 서버
+    environment:
+      - PYTHONUNBUFFERED=1
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - AGENT_EFFORT=high
+      - MAX_ITERATIONS=10
+      - TRENDS_SOURCES=hacker-news,arxiv,reddit
+      - TRENDS_DAYS=7
+      - DEBUG=false
+    volumes:
+      - ./logs:/app/logs
+      - ./news_archive.json:/app/news_archive.json
+      - ./RUBRIC_VALIDATION_RESULT.json:/app/RUBRIC_VALIDATION_RESULT.json
+    restart: always
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/economics_news_advanced.html"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 5s
+    networks:
+      - app-network
+    labels:
+      com.example.app: "AI Trends Dashboard"
+      com.example.version: "1.0.0"
+
+  # 옵션: Nginx 리버스 프록시
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./ssl:/etc/nginx/ssl:ro
+    depends_on:
+      - ai-trends-dashboard
+    networks:
+      - app-network
+    restart: always
+    profiles:
+      - production
+
+networks:
+  app-network:
+    driver: bridge
