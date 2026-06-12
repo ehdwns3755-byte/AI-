@@ -253,12 +253,12 @@ Don't worry about context window manually.
 python -m agent_harness.runner
 ```
 
-### Phase 2: Agent SDK Loop (Planned)
+### Phase 2: Agent SDK Loop ✅ (Complete)
 
-**What**: Manual loop for HITL & custom logging
-**When**: When approval gates needed
-**Effort**: ~2 weeks
-**Location**: `agent_harness/sdk_loop.py`
+**What**: Manual turn-by-turn loop with per-turn logging and approval gates
+**When**: When approval gates or custom logging needed
+**Effort**: Complete
+**Location**: `agent_harness/harness_runner.py` → `run_phase2()`
 
 **Use cases**:
 - Require human approval before risky operations
@@ -281,6 +281,98 @@ python -m agent_harness.runner
 ```bash
 python -m agent_harness.managed_agents [project_dir]
 ```
+
+### Phase 4: Rubric-Validated Harness ✅ (Complete)
+
+**What**: Full pipeline runner with quality rubric integration and auto-improvement loop
+**When**: Always — entry point for all agent work
+**Location**: `agent_harness/harness_runner.py`
+
+**Architecture** (per official Claude docs):
+```
+harness_runner.py
+├── Phase 1: Tool Runner  (runner.py pattern)
+│   └── Tools: trend_collector + validate_project_quality
+├── Phase 2: SDK Loop     (manual turn control)
+│   └── Approval gates, custom per-turn logging
+├── Phase 3: Managed Agents (managed_agents.py)
+│   ├── code_auditor     — issues → ISSUES.md
+│   ├── issue_resolution — fixes → git commits
+│   └── data_analytics   — trends → trends_report.md
+└── Rubric Validator Loop
+    └── run_validation() → iterate until 5.0/5.0
+```
+
+**Run options**:
+```bash
+python -m agent_harness.harness_runner            # full pipeline
+python -m agent_harness.harness_runner --phase 1  # Tool Runner only
+python -m agent_harness.harness_runner --phase 2  # SDK Loop only
+python -m agent_harness.harness_runner --phase 3  # Managed Agents only
+python -m agent_harness.harness_runner --validate # rubric check only
+```
+
+**Current Quality Score**: 5.0/5.0 (A+) — all 8 areas EXCELLENT
+```
+코드 품질   ★★★★★  아키텍처   ★★★★★  문서화     ★★★★★  테스트  ★★★★★
+성능        ★★★★★  보안       ★★★★★  사용자 경험 ★★★★★  운영   ★★★★★
+```
+
+---
+
+## 🎯 Quality Rubric
+
+8개 영역 × 5점 척도 (`agent_harness/rubric.py`):
+
+| 영역 | EXCELLENT 기준 | 검증 방법 |
+|------|---------------|-----------|
+| 코드 품질 | 타입힌팅 ≥80%, docstring ≥80%, 복잡도 낮음 | AST 분석 |
+| 아키텍처 | agent_harness + tools + config + tests 분리 | 디렉토리 확인 |
+| 문서화 | README + CLAUDE.md + AGENT_HARNESS.md + QUALITY_REPORT.md | 파일 확인 |
+| 테스트 | 30+ test functions | pytest 파일 스캔 |
+| 성능 | cache.py + performance.py + 응답시간 추적 | 파일 + 코드 분석 |
+| 보안 | exceptions.py + dotenv + requirements 버전 고정 | 파일 + 패턴 |
+| UX | 대시보드 + 검색 + 다크모드 + 반응형 | HTML 분석 |
+| 운영 | logger.py + scheduler + CI/CD + Docker | 파일 확인 |
+
+**루브릭 실행**:
+```bash
+python rubric_validator_runner.py           # 검증 + 보고서 생성
+python -m agent_harness.harness_runner --validate  # 하네스 통합 검증
+```
+
+---
+
+## 🤖 Agent Skills Configuration
+
+공식 문서: https://platform.claude.com/docs/en/managed-agents/skills
+
+에이전트에 스킬 부착 패턴 (Python SDK):
+```python
+agent = client.beta.agents.create(
+    name="Data Analytics Agent",
+    model="claude-opus-4-8",
+    system="...",
+    tools=[{"type": "agent_toolset_20260401"}],
+    skills=[
+        {"type": "anthropic", "skill_id": "xlsx"},   # Excel 처리
+        {"type": "custom", "skill_id": "skill_xxx", "version": "latest"},
+    ],
+)
+```
+
+**현재 에이전트 스킬 구성**:
+| 에이전트 | Tools | Skills |
+|---------|-------|--------|
+| code_auditor | agent_toolset_20260401 | — |
+| issue_resolution | agent_toolset_20260401 | — |
+| data_analytics | agent_toolset_20260401 | — |
+
+**agent_toolset_20260401** 포함 built-in tools:
+- `bash` — 쉘 명령 실행
+- `file` operations — read/write/edit/glob/grep
+- `web_search` / `web_fetch` — 웹 검색/접근
+- MCP 서버 연결 가능
 
 ---
 

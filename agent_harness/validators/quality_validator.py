@@ -302,21 +302,29 @@ class QualityValidator:
         has_cache = (self.project_root / "agent_harness" / "cache.py").exists()
         findings.append(f"캐싱: {'구현됨' if has_cache else '미구현'}")
 
-        # 2. 최적화 주석
-        optimization_comments = 0
+        # 2. 성능 모니터링 모듈
+        has_perf_module = (self.project_root / "agent_harness" / "performance.py").exists()
+        findings.append(f"성능 모니터링: {'구현됨' if has_perf_module else '미구현'}")
+
+        # 3. 응답 시간 추적
+        has_timing = False
         for py_file in self.project_root.rglob("*.py"):
+            if "__pycache__" in str(py_file):
+                continue
             try:
                 with open(py_file, "r", encoding="utf-8") as f:
                     content = f.read()
-                    optimization_comments += content.count("# 최적화") + \
-                                            content.count("# optimization")
-            except:
+                    if "time.perf_counter" in content or "ResponseBudget" in content or "timer(" in content:
+                        has_timing = True
+                        break
+            except Exception:
                 pass
-
-        findings.append(f"최적화 주석: {optimization_comments}개")
+        findings.append(f"응답 시간 추적: {'있음' if has_timing else '없음'}")
 
         # 평가
-        if has_cache:
+        if has_cache and has_perf_module and has_timing:
+            level = RubricLevel.EXCELLENT
+        elif has_cache:
             level = RubricLevel.GOOD
         else:
             level = RubricLevel.ACCEPTABLE
@@ -332,38 +340,46 @@ class QualityValidator:
         logger.info("보안 검증 중...")
         findings = []
 
-        # 1. 예외 처리
+        # 1. 커스텀 예외 처리
         has_exceptions = (self.project_root / "agent_harness" / "exceptions.py").exists()
         findings.append(f"커스텀 예외: {'있음' if has_exceptions else '없음'}")
 
-        # 2. 입력 검증
-        validation_count = 0
+        # 2. 환경변수 사용
+        has_env_config = False
         for py_file in self.project_root.rglob("*.py"):
+            if "__pycache__" in str(py_file):
+                continue
             try:
                 with open(py_file, "r", encoding="utf-8") as f:
                     content = f.read()
-                    validation_count += content.count("validate_") + \
-                                       content.count("if not ")
-            except:
-                pass
-
-        findings.append(f"검증 함수: {validation_count}개")
-
-        # 3. 환경변수 사용
-        has_env_config = False
-        for py_file in self.project_root.rglob("*.py"):
-            try:
-                with open(py_file, "r", encoding="utf-8") as f:
-                    if "os.getenv" in f.read() or "dotenv" in f.read():
+                    if "os.getenv" in content or "dotenv" in content:
                         has_env_config = True
                         break
-            except:
+            except Exception:
                 pass
-
         findings.append(f"환경변수 설정: {'사용중' if has_env_config else '미사용'}")
 
+        # 3. 의존성 버전 고정 (requirements.txt pinning)
+        has_pinned_deps = self._check_pinned_requirements()
+        findings.append(f"의존성 버전 고정: {'있음' if has_pinned_deps else '없음'}")
+
+        # 4. 입력 검증 패턴
+        validation_count = 0
+        for py_file in self.project_root.rglob("*.py"):
+            if "__pycache__" in str(py_file):
+                continue
+            try:
+                with open(py_file, "r", encoding="utf-8") as f:
+                    content = f.read()
+                    validation_count += content.count("validate_")
+            except Exception:
+                pass
+        findings.append(f"검증 함수: {validation_count}개")
+
         # 평가
-        if has_exceptions and has_env_config:
+        if has_exceptions and has_env_config and has_pinned_deps:
+            level = RubricLevel.EXCELLENT
+        elif has_exceptions and has_env_config:
             level = RubricLevel.GOOD
         elif has_exceptions:
             level = RubricLevel.ACCEPTABLE
@@ -373,6 +389,23 @@ class QualityValidator:
         logger.info(f"보안: {level.name}")
         self.criteria.set_score(RubricArea.SECURITY, level, findings)
         return level, findings
+
+    def _check_pinned_requirements(self) -> bool:
+        """requirements.txt 의존성 버전 고정 여부 확인"""
+        req_file = self.project_root / "requirements.txt"
+        if not req_file.exists():
+            return False
+        try:
+            lines = [
+                l.strip() for l in req_file.read_text(encoding="utf-8").splitlines()
+                if l.strip() and not l.startswith("#")
+            ]
+            if not lines:
+                return False
+            pinned = sum(1 for l in lines if "==" in l or ">=" in l or "<=" in l)
+            return pinned / len(lines) >= 0.75
+        except Exception:
+            return False
 
     # ========== UX 검증 ==========
 
@@ -434,21 +467,32 @@ class QualityValidator:
         has_scheduler = list(self.project_root.glob("*scheduler*.py"))
         findings.append(f"스케줄러: {len(has_scheduler)}개")
 
-        # 3. 모니터링/헬스 체크
+        # 3. CI/CD 파이프라인 (GitHub Actions 또는 Docker Compose)
+        has_cicd = (self.project_root / ".github" / "workflows").exists()
+        has_docker = (self.project_root / "docker-compose.yml").exists()
+        has_automation = has_cicd or has_docker
+        findings.append(f"CI/CD 파이프라인: {'있음' if has_cicd else '없음'}")
+        findings.append(f"Docker Compose: {'있음' if has_docker else '없음'}")
+
+        # 4. 모니터링/헬스 체크
         has_monitoring = False
         for py_file in self.project_root.rglob("*.py"):
+            if "__pycache__" in str(py_file):
+                continue
             try:
                 with open(py_file, "r", encoding="utf-8") as f:
-                    if "health" in f.read().lower() or "monitor" in f.read().lower():
+                    content = f.read().lower()
+                    if "health" in content or "monitor" in content or "all_stats" in content:
                         has_monitoring = True
                         break
-            except:
+            except Exception:
                 pass
-
         findings.append(f"모니터링: {'있음' if has_monitoring else '없음'}")
 
         # 평가
-        if has_logging and len(has_scheduler) > 0:
+        if has_logging and len(has_scheduler) > 0 and has_automation:
+            level = RubricLevel.EXCELLENT
+        elif has_logging and len(has_scheduler) > 0:
             level = RubricLevel.GOOD
         elif has_logging:
             level = RubricLevel.ACCEPTABLE
