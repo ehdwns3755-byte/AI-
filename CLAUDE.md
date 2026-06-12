@@ -265,17 +265,22 @@ python -m agent_harness.runner
 - Custom logging per turn
 - Conditional tool execution
 
-### Phase 3: Multiagent Coordinator (Planned)
+### Phase 3: Multiagent Coordinator ✅ (Complete)
 
-**What**: Multiple specialized agents in parallel
-**When**: Need to scale trend collection
-**Effort**: ~1 month
-**Infrastructure**: Claude Managed Agents (beta)
+**What**: Three specialized agents coordinated in sequence
+**When**: Enabled — run via `python -m agent_harness.managed_agents`
+**Effort**: Complete
+**Infrastructure**: Claude Managed Agents (beta, `managed-agents-2026-04-01`)
 
-**Use cases**:
-- Parallel data collection (speed up)
-- Specialized agents per domain
-- Stateful long-running tasks
+**Agents** (`agent_harness/agent_registry.json`):
+- `code_auditor` — Code Auditor Agent (discovers issues → ISSUES.md)
+- `issue_resolution` — Issue Resolution Agent (fixes issues → git commits)
+- `data_analytics` — Data Analytics Agent (trends → trends_report.md)
+
+**Run**:
+```bash
+python -m agent_harness.managed_agents [project_dir]
+```
 
 ---
 

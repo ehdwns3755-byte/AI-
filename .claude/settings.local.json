@@ -51,7 +51,11 @@
       "Bash(git diff *)",
       "Bash(git show *)",
       "Bash(python)",
-      "Bash(python -c ' *)"
+      "Bash(python -c ' *)",
+      "mcp__visualize__read_me",
+      "mcp__visualize__show_widget",
+      "Bash(python3 -c ' *)",
+      "Bash(python -m agent_harness.managed_agents *)"
     ]
   }
 }
