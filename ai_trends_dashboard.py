@@ -50,10 +50,10 @@ class AITrendsDashboard:
 
         return {
             'sources': {
-                'google_news': {'limit': 15, 'timeout': 10},
-                'hacker_news': {'limit': 10, 'timeout': 10, 'max_workers': 5},
-                'product_hunt': {'limit': 10, 'timeout': 10},
-                'reddit': {'limit': 10, 'timeout': 10}
+                'google_news_ko': {'limit': 15, 'timeout': 10},
+                'naver_news': {'limit': 15, 'timeout': 10},
+                'daumnet_news': {'limit': 10, 'timeout': 10},
+                'hacker_news': {'limit': 10, 'timeout': 10, 'max_workers': 5}
             }
         }
 
@@ -71,37 +71,40 @@ class AITrendsDashboard:
             ]
         )
 
-    def fetch_google_news(self):
-        """Fetch AI news from Google News"""
+    def fetch_google_news_ko(self):
+        """Fetch AI news from Google News Korea"""
         try:
-            config = self.config.get('sources', {}).get('google_news', {})
-            url = config.get('url', 'https://news.google.com/rss/search?q=artificial+intelligence+OR+machine+learning+OR+AI&hl=en-US&gl=US&ceid=US:en')
+            config = self.config.get('sources', {}).get('google_news_ko', {})
+            url = config.get('url', 'https://news.google.com/rss/search?q=인공지능+OR+AI+OR+머신러닝+OR+LLM+OR+챗봇+OR+딥러닝&hl=ko&gl=KR&ceid=KR:ko')
             limit = config.get('limit', 15)
             timeout = config.get('timeout', 10)
 
-            response = requests.get(url, timeout=timeout)
+            response = requests.get(url, timeout=timeout, headers={
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+            })
             response.raise_for_status()
+            response.encoding = 'utf-8'
             feed = feedparser.parse(response.content)
 
             if not feed.entries:
-                logging.warning("No entries found in Google News feed")
+                logging.warning("No entries found in Google News Korea feed")
                 return
 
             for entry in feed.entries[:limit]:
                 self.news_items.append({
                     'title': entry.get('title', ''),
                     'link': entry.get('link', ''),
-                    'source': 'Google News',
+                    'source': 'Google News 한국',
                     'category': self._categorize(entry.get('title', '')),
                     'date': entry.get('published', ''),
                     'summary': entry.get('summary', '')[:200]
                 })
         except requests.Timeout:
-            logging.error("Timeout while fetching Google News")
+            logging.error("Timeout while fetching Google News Korea")
         except requests.RequestException as e:
-            logging.error(f"Network error fetching Google News: {e}")
+            logging.error(f"Network error fetching Google News Korea: {e}")
         except Exception as e:
-            logging.error(f"Unexpected error fetching Google News: {e}")
+            logging.error(f"Unexpected error fetching Google News Korea: {e}")
 
     def fetch_hacker_news(self):
         """Fetch AI-related stories from Hacker News using official API with parallel requests"""
@@ -164,74 +167,78 @@ class AITrendsDashboard:
         except Exception as e:
             logging.error(f"Unexpected error fetching Hacker News: {e}")
 
-    def fetch_product_hunt(self):
-        """Fetch AI products from Product Hunt"""
+    def fetch_naver_news(self):
+        """Fetch AI news from Naver Tech"""
         try:
-            config = self.config.get('sources', {}).get('product_hunt', {})
-            url = config.get('url', 'https://www.producthunt.com/feed')
-            limit = config.get('limit', 10)
+            config = self.config.get('sources', {}).get('naver_news', {})
+            # Naver Tech news feed
+            url = config.get('url', 'https://rss.naver.com/news/today/it.xml')
+            limit = config.get('limit', 15)
             timeout = config.get('timeout', 10)
 
-            response = requests.get(url, timeout=timeout)
+            response = requests.get(url, timeout=timeout, headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'})
             response.raise_for_status()
+            response.encoding = 'utf-8'
             feed = feedparser.parse(response.content)
 
             if not feed.entries:
-                logging.warning("No entries found in Product Hunt feed")
+                logging.warning("No entries found in Naver News feed")
                 return
 
             for entry in feed.entries[:limit]:
                 title = entry.get('title', '')
-                if any(keyword in title.lower() for keyword in ['ai', 'gpt', 'llm', 'ml']):
+                # More flexible filtering for Korean AI news
+                if any(keyword in title for keyword in ['AI', '인공지능', '머신러닝', 'LLM', '자동화', '로봇', '딥러닝', '챗봇', 'GPT', '클로드']):
                     self.news_items.append({
                         'title': title,
                         'link': entry.get('link', ''),
-                        'source': 'Product Hunt',
+                        'source': '네이버 뉴스',
                         'category': self._categorize(title),
                         'date': entry.get('published', ''),
                         'summary': entry.get('summary', '')[:200]
                     })
         except requests.Timeout:
-            logging.error("Timeout while fetching Product Hunt")
+            logging.error("Timeout while fetching Naver News")
         except requests.RequestException as e:
-            logging.error(f"Network error fetching Product Hunt: {e}")
+            logging.error(f"Network error fetching Naver News: {e}")
         except Exception as e:
-            logging.error(f"Unexpected error fetching Product Hunt: {e}")
+            logging.error(f"Unexpected error fetching Naver News: {e}")
 
-    def fetch_reddit(self):
-        """Fetch AI discussions from Reddit"""
+    def fetch_daumnet_news(self):
+        """Fetch AI news from Daum News IT"""
         try:
-            config = self.config.get('sources', {}).get('reddit', {})
-            url = config.get('url', 'https://www.reddit.com/r/MachineLearning/new.json')
+            config = self.config.get('sources', {}).get('daumnet_news', {})
+            url = config.get('url', 'https://rss.daum.net/rss/breakingnews/it.xml')
             limit = config.get('limit', 10)
             timeout = config.get('timeout', 10)
-            headers = {'User-Agent': 'Mozilla/5.0 (compatible; AITrendsDashboard/1.0)'}
 
-            response = requests.get(url, headers=headers, timeout=timeout)
+            response = requests.get(url, timeout=timeout, headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'})
             response.raise_for_status()
-            data = response.json()
+            response.encoding = 'utf-8'
+            feed = feedparser.parse(response.content)
 
-            children = data.get('data', {}).get('children', [])
-            if not children:
-                logging.warning("No posts found in Reddit feed")
+            if not feed.entries:
+                logging.warning("No entries found in Daum News feed")
                 return
 
-            for post in children[:limit]:
-                post_data = post.get('data', {})
-                self.news_items.append({
-                    'title': post_data.get('title', ''),
-                    'link': f"https://reddit.com{post_data.get('permalink', '')}",
-                    'source': 'Reddit',
-                    'category': self._categorize(post_data.get('title', '')),
-                    'date': datetime.fromtimestamp(post_data.get('created_utc', 0)).strftime('%Y-%m-%d'),
-                    'summary': post_data.get('selftext', '')[:200]
-                })
+            for entry in feed.entries[:limit]:
+                title = entry.get('title', '')
+                # More flexible filtering for Korean AI news
+                if any(keyword in title for keyword in ['AI', '인공지능', '머신러닝', 'LLM', '자동화', '로봇', '딥러닝', '챗봇', 'GPT', '클로드']):
+                    self.news_items.append({
+                        'title': title,
+                        'link': entry.get('link', ''),
+                        'source': '다음 뉴스',
+                        'category': self._categorize(title),
+                        'date': entry.get('published', ''),
+                        'summary': entry.get('summary', '')[:200]
+                    })
         except requests.Timeout:
-            logging.error("Timeout while fetching Reddit")
+            logging.error("Timeout while fetching Daum News")
         except requests.RequestException as e:
-            logging.error(f"Network error fetching Reddit: {e}")
+            logging.error(f"Network error fetching Daum News: {e}")
         except Exception as e:
-            logging.error(f"Unexpected error fetching Reddit: {e}")
+            logging.error(f"Unexpected error fetching Daum News: {e}")
 
     def _categorize(self, text):
         """Categorize news based on keywords from config"""
@@ -547,24 +554,24 @@ class AITrendsDashboard:
     def run(self):
         """Main execution"""
         logging.info("=" * 50)
-        logging.info("Starting AI news collection")
+        logging.info("Starting AI news collection (Korean)")
         logging.info("=" * 50)
 
-        self.fetch_google_news()
-        google_count = len([x for x in self.news_items if x['source'] == 'Google News'])
-        logging.info(f"Google News: {google_count} items")
+        self.fetch_google_news_ko()
+        google_count = len([x for x in self.news_items if x['source'] == 'Google News 한국'])
+        logging.info(f"Google News Korea: {google_count} items")
+
+        self.fetch_naver_news()
+        naver_count = len([x for x in self.news_items if x['source'] == '네이버 뉴스'])
+        logging.info(f"Naver News: {naver_count} items")
+
+        self.fetch_daumnet_news()
+        daum_count = len([x for x in self.news_items if x['source'] == '다음 뉴스'])
+        logging.info(f"Daum News: {daum_count} items")
 
         self.fetch_hacker_news()
         hn_count = len([x for x in self.news_items if x['source'] == 'Hacker News'])
         logging.info(f"Hacker News: {hn_count} items")
-
-        self.fetch_product_hunt()
-        ph_count = len([x for x in self.news_items if x['source'] == 'Product Hunt'])
-        logging.info(f"Product Hunt: {ph_count} items")
-
-        self.fetch_reddit()
-        reddit_count = len([x for x in self.news_items if x['source'] == 'Reddit'])
-        logging.info(f"Reddit: {reddit_count} items")
 
         if not self.news_items:
             logging.warning("No news items collected. Trying to load cached data...")
