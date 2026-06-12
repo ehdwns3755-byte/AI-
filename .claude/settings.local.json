@@ -49,7 +49,9 @@
       "Bash(git log --oneline *)",
       "Bash(git status *)",
       "Bash(git diff *)",
-      "Bash(git show *)"
+      "Bash(git show *)",
+      "Bash(python)",
+      "Bash(python -c ' *)"
     ]
   }
 }
