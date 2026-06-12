@@ -34,7 +34,22 @@
       "Bash(git commit *)",
       "Bash(git ls-tree *)",
       "Bash(awk '{print $NF}')",
-      "Bash(echo \"✅ Remote: $\\(git remote get-url origin\\)\")"
+      "Bash(echo \"✅ Remote: $\\(git remote get-url origin\\)\")",
+      "Skill(run)",
+      "Skill(run:*)",
+      "Bash(python -m pip install -q -r requirements.txt)",
+      "Bash(python -m pip install -q flask==3.0.0)",
+      "Bash(curl -s http://localhost:5000)",
+      "Skill(issue-driven-development)",
+      "Skill(issue-driven-development:*)",
+      "Skill(code-audit-and-github-issues)",
+      "Skill(code-audit-and-github-issues:*)",
+      "Skill(issue-resolution-workflow)",
+      "Skill(issue-resolution-workflow:*)",
+      "Bash(git log --oneline *)",
+      "Bash(git status *)",
+      "Bash(git diff *)",
+      "Bash(git show *)"
     ]
   }
 }
